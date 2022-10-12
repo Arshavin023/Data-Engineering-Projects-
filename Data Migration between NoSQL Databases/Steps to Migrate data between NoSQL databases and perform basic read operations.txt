@@ -1,0 +1,66 @@
+# Getting Environment ready;
+# Install drivers
+npm install -g couchimport
+
+# CouchDB version
+couchimport --version
+
+# Downloading and installing MongoDB files
+wget https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu1804-x86_64-100.3.1.tgz
+tar -xf mongodb-database-tools-ubuntu1804-x86_64-100.3.1.tgz
+export PATH=$PATH:/home/project/mongodb-database-tools-ubuntu1804-x86_64-100.3.1/bin
+
+
+# Checking MongoDB version
+mongoimport --version
+
+# Connecting to IBM Cloudant DB
+export CLOUDANTURL="API URL"
+
+# Bulk load of data into IBM Cloudant
+curl -X POST $CLOUDANTURL/movies/_bulk_docs -Hcontent-type:application/json -d @movies.json
+
+# Create Index on Director field in IBM Cloudant DB
+curl -X POST $CLOUDANTURL/movies/_index \-H"Content-Type:application/json" \-d'{"index":{"fields":["Director"]}}'
+
+# Performing read operation; retrieving data with Richard Gage in Director field
+curl -X POST $CLOUDANTURL/movies/_find \-H"Content-Type:application/json" \-d'{"selector":{"Director":"Richard Gage"}}'
+
+# Create Index on Director field in IBM Cloudant DB
+curl -X POST $CLOUDANTURL/movies/_index \-H"Content-Type:application/json" \-d'{"index":{"fields":["title"]}}'
+
+# Performing read operation; retrieving specific fields with Top Dog as title
+curl -X POST $CLOUDANTURL/movies/_find \-H"Content-Type:application/json" \-d'{"selector":{"title":"Top Dog"},"field":["year","Director"]}'
+
+# Export data to json file from IBM Cloudant
+couchexport --url $CLOUDANTURL --db movies --type jsonl > movies.json
+
+# Import into MongoDB
+start_mongo
+mongoimport -u root -p PASSWORD --authenticationDatabase admin --db entertainment --collection movies --file movies.json
+
+# Performing read operations
+> db.movies.aggregate([{"$group":{"_id":"$year","yearcount":{"$sum":1}}},{"$sort":{"yearcount":-1}},{$limit:1}])
+> db.movies.count({"year":{"$gt":1999}})
+> db.movies.aggregate([{$match:{"year":2007}},{"$group":{"_id":"$year","avg_votes":{"$avg":"$votes"}}}])
+
+# Export data out of MongoDB
+mongoexport -u root -p PASSWORD --authenticationDatabase admin --db entertainment --collection movies --out partial_data.csv --type=csv --fields _id,title,year,rating,Director
+
+# Import into Cassandra
+start_cassandra
+use keyspace entertainment
+> COPY entertainment.movies(id,title,year,director) FROM 'partial_data.csv' WITH DELIMITER=',' AND HEADER=TRUE;
+
+# Performing read operations
+> select count(*) from movies;
+
+# Create Index
+> create index cassandra_index on movies(rating);
+
+# Performing read operations
+select count(*) from movies where rating='G';
+
+
+
+
