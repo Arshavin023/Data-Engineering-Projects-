@@ -1,0 +1,44 @@
+# Data streaming pipeline with Kafka for livetolldata
+
+# Downloading and extracting Kafka files"
+wget https://archive.apache.org/dist/kafka/2.8.0/kafka_2.12-2.8.0.tgz
+tar -xzf kafka_2.12-2.8.0.tgz
+
+# Starting MySQL database
+start_mysql
+
+# Creating database and schema
+mysql --host=127.0.0.1 --port=3306 --user=root --password=MjkzNTItdWNoZWp1 < schema.sql
+
+# Installing Kafka and MySQL connector Python libraries
+python3 -m pip install kafka-python
+python3 -m pip install mysql-connector-python 
+
+# Starting Kafka service
+# Start the Zookeeper server on a new terminal
+cd kafka_2.12-2.8.0
+bin/zookeeper-server-start.sh config/zookeeper.properties
+
+# Start Kafka broker service on a new terminal
+cd kafka_2.12-2.8.0
+bin/kafka-server-start.sh config/server.properties
+
+# Create a topic named toll on a new terminal
+cd kafka_2.12-2.8.0
+bin/kafka-topics.sh --create --topic toll --bootstrap-server localhost:9092
+
+# Execute Python producer and consumer scripts on a new terminal
+echo "Execute producer script"
+python3 producer.py
+
+# Consumer python script on a new terminal
+python3 consumer.py
+
+# Verifying if data was loaded successfully on a new terminal
+mysql --host=127.0.0.1 --port=3306 --user=root --password=MjkzNTItdWNoZWp1
+> use tolldata
+> select * from tolldata limit 10;
+
+echo "Successfully completed Data Pipeline"
+
+
